@@ -1,44 +1,49 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "./GamiBox.sol";
 
-//birinin çağırdığı fonksyion işlenmeden başkası o fonksiyonu çağırırsa ne oluyor, sanırım sırayla işlenir.
+/// @title Provable fair lootbox game
+/// @dev tokensSeller should approve Loot contract.
+
 contract Loot {
     GamiBox gamiBox;
+
+    /// @dev Looted token id can be added to event.
+    event LootBox(address indexed boxLooter, uint256 boxId, uint256 randomNum);
+
+    /// @dev tokensSeller is token's owner address and should be change.d to ERC1155 owner before deployment.
     address public tokensSeller = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
-    //private olcak servers seed
+
+    /// @dev server_seed should be private after testing.
     uint256 public server_seed;
-    //struct kaldırıp mappinglerden yürünebilir, ya da mapping yerine structa arrayi koymanın yolu buunur
-    //strcutı yoruma al, mappinglerin uitnini boxid olarak kullanarak ilerle box[boxId] den kurtul
-    /* struct Box {
-        uint256 keyId;
-        uint8[] items;
-        uint24[] odds;
-        uint24[] typeOdds;
-        uint8[] typeCounts;
-    } */
 
-    //mapping(uint256 => Box) box;
+    /// @dev boxKeys maps key tokens to box tokens.
+    mapping(uint256 => uint256) public boxKeys;
 
-    mapping(uint256 => uint256) boxKeys;
-    mapping(uint256 => uint256[]) boxItems;
-    mapping(uint256 => uint256[]) odds;
-    mapping(uint256 => uint256[]) typeOdds;
-    mapping(uint256 => uint256[]) typeCounts;
+    /// @dev boxItems maps relevant items to boxes.
+    mapping(uint256 => uint256[]) public boxItems;
 
-    //dışarıdan lootu approvelamam lazım
+    /** @dev odds maps winning probability for every item in a box to relevant item in order,
+     *  there are more than one items in the boxes' most class and algorithm needs to know every odd for every item
+     *  even if they are in same class.
+     */
+    mapping(uint256 => uint256[]) public odds;
+
+    /// @dev typeOdds maps winning probability for every class, dev can add new classes to box.
+    mapping(uint256 => uint256[]) public typeOdds;
+
+    /// @dev typeOdds maps winning probability for every item class, dev can add new classes to any box.
+    mapping(uint256 => uint256[]) public typeCounts;
+
     constructor(address _gamiBox) {
         server_seed = (block.timestamp + block.difficulty) % 10000000;
         gamiBox = GamiBox(_gamiBox);
 
-        /* uint8[16] memory boxItems;
-        uint24[16] memory forOdds;
-        uint24[5] memory forTypeOdds;
-        uint8[5] memory forTypeCounts; */
+        /** @dev To test, i created 3 box with different keys, tokens and unique odds for classes.
+         *  To optimize gas, it can be reduced to fixed variables with fixed class count and
+         *  simple odds.
+         */
 
         boxItems[3] = [
             6,
@@ -79,11 +84,6 @@ contract Loot {
         typeOdds[3] = [7992328, 1598465, 319693, 63939, 25575];
         typeCounts[3] = [6, 4, 3, 2, 1];
         boxKeys[3] = 1;
-
-        /*  uint8[17] memory boxItems0;
-        uint24[17] memory forOdds0;
-        uint24[6] memory forTypeOdds0;
-        uint8[6] memory forTypeCounts0; */
 
         boxItems[4] = [
             6,
@@ -168,34 +168,13 @@ contract Loot {
         typeOdds[5] = [7992328, 1598465, 319693, 63939, 24575, 1000];
         typeCounts[5] = [6, 4, 3, 2, 1, 1];
         boxKeys[5] = 2;
-
-        // type odds 7992328, 1598465, 319693, 63939, 25575
-        /*3*/
-        /* box[3] = Box(
-            1,
-            boxItems,
-            forOdds,
-            forTypeOdds,
-            forTypeCounts
-        );
-       
-        /*4
-        box[4] = Box(
-            1,
-            boxItems[1],
-            forOdds[1],
-            forTypeOdds[1],
-            forTypeCounts[1]
-        );
-        /*5
-        box[5] = Box(
-            2,
-            boxItems[2],
-            forOdds[2],
-            forTypeOdds[2],
-            forTypeCounts[2]
-        ); */
     }
+
+    /** @dev Requires relevant box and key to proceed. Selects correct gap between class odds with first if.
+     *   With for, it finds correct item by controlling odd gap for every single item. It burns key and box.
+     *   If you want to add new class to game, you should add a new else if block to lootTheBox function.
+     */
+    /// @param boxId The box id to loot. Provided by the end user.
 
     function lootTheBox(uint256 boxId) public {
         require(gamiBox.balanceOf(msg.sender, boxId) >= 1);
@@ -442,5 +421,7 @@ contract Loot {
 
         gamiBox.burn(msg.sender, boxId, 1);
         gamiBox.burn(msg.sender, boxKeys[boxId], 1);
+
+        emit LootBox(msg.sender, boxId, server_seed);
     }
 }

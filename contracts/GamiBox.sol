@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+/// @title Lootbox tokens
+
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
@@ -9,8 +11,10 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
     string public name;
     string public symbol;
 
+    /// @dev Stores token ids to map them to token classes.
     mapping(uint256 => uint256[]) public tokenTypes;
 
+    /// @dev Stores token classes for batch mint.
     uint256[] public _amounts = [
         gamiToken,
         key,
@@ -54,6 +58,8 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
     uint256 legendary = 10;
     uint256 founders = 1;
 
+    /// @dev Mints first batch of tokens and assigns token's uri.
+
     constructor() ERC1155("https://game.example/api/item/{id}.json") {
         name = "Gami Box";
         symbol = "GAMI";
@@ -73,6 +79,8 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
 
         uint256 hold = 0;
 
+        /// @dev Fills _id memory array with token id's of every class to pass into mintBatch.
+
         for (uint256 i = 0; i < 9; i++) {
             for (uint256 j = 0; j < tokenTypes[i].length; j++) {
                 _ids[hold] = tokenTypes[i][j];
@@ -83,10 +91,13 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
         _mintBatch(msg.sender, _ids, _amounts, "");
     }
 
+    /// @dev Gives owner to chance to assign different uri to tokens.
+
     function setURI(string memory newuri) public onlyOwner {
         _setURI(newuri);
     }
 
+    /// @dev Gives owner to chance to mint new tokens.
     function mint(
         address account,
         uint256 id,
