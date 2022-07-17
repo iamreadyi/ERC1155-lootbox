@@ -81,6 +81,7 @@ contract Loot {
             33939,
             25575
         ];
+        ///@dev Bad design, sums wil be included. Look to simpleLoot contract
         typeOdds[3] = [7992328, 1598465, 319693, 63939, 25575];
         typeCounts[3] = [6, 4, 3, 2, 1];
         boxKeys[3] = 1;
@@ -170,6 +171,14 @@ contract Loot {
         boxKeys[5] = 2;
     }
 
+    function batchLoot(uint256 boxId, uint256 amount) public {
+        require(gamiBox.balanceOf(msg.sender, boxId) >= amount);
+        require(gamiBox.balanceOf(msg.sender, boxKeys[boxId]) >= amount);
+        for (uint256 j = 0; j < amount; j++) {
+            lootTheBox(boxId);
+        }
+    }
+
     /** @dev Requires relevant box and key to proceed. Selects correct gap between class odds with first if.
      *   With for, it finds correct item by controlling odd gap for every single item. It burns key and box.
      *   If you want to add new class to game, you should add a new else if block to lootTheBox function.
@@ -191,6 +200,7 @@ contract Loot {
                     initial <= server_seed &&
                     server_seed < initial + odds[boxId][i]
                 ) {
+                    //require(gamiBox.balanceOf(tokensSeller, boxItems[boxId][i]) >= 1);
                     gamiBox.safeTransferFrom(
                         tokensSeller,
                         msg.sender,

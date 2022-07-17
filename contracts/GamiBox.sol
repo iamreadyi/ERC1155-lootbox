@@ -14,6 +14,16 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
     /// @dev Stores token ids to map them to token classes.
     mapping(uint256 => uint256[]) public tokenTypes;
 
+    uint256 gamiToken = 1000 * 10**18;
+    uint256 key = 10**6;
+    uint256 box = 10**6;
+    uint256 standard = 10**5;
+    uint256 common = 10**4;
+    uint256 rare = 10**3;
+    uint256 epic = 10**2;
+    uint256 legendary = 10;
+    uint256 founders = 1;
+
     /// @dev Stores token classes for batch mint.
     uint256[] public _amounts = [
         gamiToken,
@@ -48,15 +58,7 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
         founders
     ];
 
-    uint256 gamiToken = 1000 * 10**18;
-    uint256 key = 10**6;
-    uint256 box = 10**6;
-    uint256 standard = 10**5;
-    uint256 common = 10**4;
-    uint256 rare = 10**3;
-    uint256 epic = 10**2;
-    uint256 legendary = 10;
-    uint256 founders = 1;
+    uint256 public hold = 0;
 
     /// @dev Mints first batch of tokens and assigns token's uri.
 
@@ -76,8 +78,6 @@ contract GamiBox is ERC1155, Ownable, ERC1155Burnable {
         tokenTypes[8] = [28, 29]; //1 founders
 
         uint256[] memory _ids = new uint256[](30);
-
-        uint256 hold = 0;
 
         /// @dev Fills _id memory array with token id's of every class to pass into mintBatch.
 

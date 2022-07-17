@@ -9,7 +9,7 @@ import "./GamiBox.sol";
 contract Market {
     GamiBox gamiBox;
 
-    address public tokensSeller = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    address public tokensSeller = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
     constructor(address _gamiBox) {
         gamiBox = GamiBox(_gamiBox);
