@@ -12,8 +12,6 @@ contract SimpleLoot {
     /// @dev Looted token id can be added to event.
     event LootBox(address indexed boxLooter, uint256 boxId, uint256 randomNum);
 
-    //event HashedServerSeed(uint seed);
-
     /// @dev tokensSeller is token's owner address and should be changed to ERC1155 owner before deployment.
     address public tokensSeller = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
@@ -51,7 +49,6 @@ contract SimpleLoot {
     ];
 
     /// @dev typeOdds maps winning probability for every class, dev can add new classes to box.
-    //uint256[] public typeOdds = [7992328, 1598465, 319693, 63939, 25475, 100];
     uint256[] public typeOdds = [
         0,
         7992328,
@@ -61,12 +58,11 @@ contract SimpleLoot {
         9999900,
         10000000
     ];
-
-    /// @dev typeOdds maps winning probability for every item class, dev can add new classes to any box.
+    /// @dev typeCounts maps item count for every class, dev can add new classes to box game itself.
     uint256[] public typeCounts = [6, 4, 3, 2, 1, 1];
-    uint256[] public nonTypeCounts = [0, 6, 10, 13, 15, 16, 17];
 
-    //uint256[] public typeCounts = [6, 10, 13, 15, 16, 17];
+    /// @dev nonTypeCounts maps sums of typeCounts for every class.
+    uint256[] public nonTypeCounts = [0, 6, 10, 13, 15, 16, 17];
 
     constructor(address _gamiBox) {
         server_seed = (block.timestamp + block.difficulty) % 10000000;
@@ -138,9 +134,10 @@ contract SimpleLoot {
         boxKeys[5] = 2;
     }
 
-    /** @dev Requires relevant box and key to proceed. Selects correct gap between class odds with first if.
-     *   With for, it finds correct item by controlling odd gap for every single item. It burns key and box.
-     *   If you want to add new class to game, you should add a new else if block to lootTheBox function.
+    /** @dev Requires relevant box and key to proceed. Selects correct gap between class odds with first for if.
+     *   With second for if, it finds correct item by controlling odd gap for every single item. It burns key and box.
+     *   If you want to add new class to game, you should add its data to arrays and change first fors k< 6
+     *   to relevenat class count.
      */
     /// @param boxId The box id to loot. Provided by the end user.
 

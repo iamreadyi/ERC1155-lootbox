@@ -3,17 +3,17 @@ pragma solidity ^0.8.4;
 
 import "./GamiBox.sol";
 
-/// @title Provable fair lootbox game
+/// @title Lootbox game, on different boxes different odds and classes possible
 /// @dev tokensSeller should approve Loot contract.
 
-contract Loot {
+contract CustomLoot {
     GamiBox gamiBox;
 
     /// @dev Looted token id can be added to event.
     event LootBox(address indexed boxLooter, uint256 boxId, uint256 randomNum);
 
     /// @dev tokensSeller is token's owner address and should be change.d to ERC1155 owner before deployment.
-    address public tokensSeller = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    address public tokensSeller = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
     /// @dev server_seed should be private after testing.
     uint256 public server_seed;
@@ -33,8 +33,11 @@ contract Loot {
     /// @dev typeOdds maps winning probability for every class, dev can add new classes to box.
     mapping(uint256 => uint256[]) public typeOdds;
 
-    /// @dev typeOdds maps winning probability for every item class, dev can add new classes to any box.
+    /// @dev typeCounts maps item count for every class, dev can add new classes to any box.
     mapping(uint256 => uint256[]) public typeCounts;
+
+    /// @dev nonTypeCounts maps sums of typeCounts for every class.
+    mapping(uint256 => uint256[]) public nonTypeCounts;
 
     constructor(address _gamiBox) {
         server_seed = (block.timestamp + block.difficulty) % 10000000;
@@ -81,9 +84,11 @@ contract Loot {
             33939,
             25575
         ];
-        ///@dev Bad design, sums wil be included. Look to simpleLoot contract
-        typeOdds[3] = [7992328, 1598465, 319693, 63939, 25575];
+
+        typeOdds[3] = [0, 7992328, 9590793, 9910486, 9974425, 10000000];
+
         typeCounts[3] = [6, 4, 3, 2, 1];
+        nonTypeCounts[3] = [0, 6, 10, 13, 15, 16];
         boxKeys[3] = 1;
 
         boxItems[4] = [
@@ -124,8 +129,18 @@ contract Loot {
             25475,
             100
         ];
-        typeOdds[4] = [7992328, 1598465, 319693, 63939, 25475, 100];
+
+        typeOdds[4] = [
+            0,
+            7992328,
+            9590793,
+            9910486,
+            9974425,
+            9999900,
+            10000000
+        ];
         typeCounts[4] = [6, 4, 3, 2, 1, 1];
+        nonTypeCounts[4] = [0, 6, 10, 13, 15, 16, 17];
         boxKeys[4] = 2;
 
         boxItems[5] = [
@@ -166,8 +181,18 @@ contract Loot {
             24575,
             1000
         ];
-        typeOdds[5] = [7992328, 1598465, 319693, 63939, 24575, 1000];
+
+        typeOdds[5] = [
+            0,
+            7992328,
+            9590793,
+            9910486,
+            9974425,
+            9999000,
+            10000000
+        ];
         typeCounts[5] = [6, 4, 3, 2, 1, 1];
+        nonTypeCounts[5] = [0, 6, 10, 13, 15, 16, 17];
         boxKeys[5] = 2;
     }
 
@@ -175,25 +200,68 @@ contract Loot {
         require(gamiBox.balanceOf(msg.sender, boxId) >= amount);
         require(gamiBox.balanceOf(msg.sender, boxKeys[boxId]) >= amount);
         for (uint256 j = 0; j < amount; j++) {
-            lootTheBox(boxId);
+            uint256 new_seed = (block.difficulty +
+                block.timestamp +
+                server_seed) % 10000000;
+            lootTheBox(boxId, new_seed);
         }
     }
 
-    /** @dev Requires relevant box and key to proceed. Selects correct gap between class odds with first if.
-     *   With for, it finds correct item by controlling odd gap for every single item. It burns key and box.
-     *   If you want to add new class to game, you should add a new else if block to lootTheBox function.
+    /** @dev Requires relevant box and key to proceed. Selects correct gap between class odds with first  for if.
+     *   With second for if, it finds correct item by controlling odd gap for every single item. It burns key and box.
+     *   If you want to add new class to game, you should add its data to mappings and change first fors k< 6
+     *   to relevenat class count.
      */
     /// @param boxId The box id to loot. Provided by the end user.
 
-    function lootTheBox(uint256 boxId) public {
+    function lootTheBox(uint256 boxId, uint256 testSeed) public {
         require(gamiBox.balanceOf(msg.sender, boxId) >= 1);
         require(gamiBox.balanceOf(msg.sender, boxKeys[boxId]) >= 1);
+        bool exit = false;
 
         server_seed =
             (block.difficulty + block.timestamp + server_seed) %
             10000000;
 
-        if (0 <= server_seed && server_seed < typeOdds[boxId][0]) {
+        for (uint256 k = 0; k < 6; k++) {
+            if (
+                typeOdds[boxId][k] <= testSeed && /* server_seed */
+                testSeed < /* server_seed */
+                typeOdds[boxId][k + 1]
+            ) {
+                uint256 initial = typeOdds[boxId][k];
+                for (uint256 i = 0; i < typeCounts[boxId][k]; i++) {
+                    if (
+                        initial <= testSeed && /* server_seed */
+                        testSeed < /* server_seed */
+                        initial + odds[boxId][i + nonTypeCounts[boxId][k]]
+                    ) {
+                        //require(gamiBox.balanceOf(tokensSeller, boxItems[boxId][i]) >= 1);
+                        gamiBox.safeTransferFrom(
+                            tokensSeller,
+                            msg.sender,
+                            boxItems[boxId][i + nonTypeCounts[boxId][k]],
+                            1,
+                            ""
+                        );
+                        exit = true;
+                        break;
+                    } else {
+                        initial += odds[boxId][i + nonTypeCounts[boxId][k]];
+                    }
+                }
+            }
+            if (exit == true) {
+                break;
+            }
+        }
+        gamiBox.burn(msg.sender, boxId, 1);
+        gamiBox.burn(msg.sender, boxKeys[boxId], 1);
+
+        emit LootBox(msg.sender, boxId, server_seed);
+    }
+    // Comment stays because i want to see it another time when i study algorithms rigorously
+    /* if (0 <= server_seed && server_seed < typeOdds[boxId][0]) {
             uint256 initial = 0;
             for (uint256 i = 0; i < typeCounts[boxId][0]; i++) {
                 if (
@@ -222,12 +290,12 @@ contract Loot {
                 if (
                     initial <= server_seed &&
                     server_seed <
-                    initial + odds[boxId][typeCounts[boxId][0] + i] /* box[boxId].odds[box[boxId].typeCounts[0] + i] */
+                    initial + odds[boxId][typeCounts[boxId][0] + i] 
                 ) {
                     gamiBox.safeTransferFrom(
                         tokensSeller,
                         msg.sender,
-                        boxItems[boxId][typeCounts[boxId][0] + i], /* box[boxId].items[box[boxId].typeCounts[0] + i] */
+                        boxItems[boxId][typeCounts[boxId][0] + i], 
                         1,
                         ""
                     );
@@ -249,14 +317,14 @@ contract Loot {
                     initial +
                         odds[boxId][
                             typeCounts[boxId][0] + typeCounts[boxId][1] + i
-                        ] /* box[boxId].odds[box[boxId].typeCounts[0] + i] */
+                        ] 
                 ) {
                     gamiBox.safeTransferFrom(
                         tokensSeller,
                         msg.sender,
                         boxItems[boxId][
                             typeCounts[boxId][0] + typeCounts[boxId][1] + i
-                        ], /* box[boxId].items[box[boxId].typeCounts[0] + i] */
+                        ], 
                         1,
                         ""
                     );
@@ -289,7 +357,7 @@ contract Loot {
                                 typeCounts[boxId][1] +
                                 typeCounts[boxId][2] +
                                 i
-                        ] /* box[boxId].odds[box[boxId].typeCounts[0] + i] */
+                        ] 
                 ) {
                     gamiBox.safeTransferFrom(
                         tokensSeller,
@@ -299,7 +367,7 @@ contract Loot {
                                 typeCounts[boxId][1] +
                                 typeCounts[boxId][2] +
                                 i
-                        ], /* box[boxId].items[box[boxId].typeCounts[0] + i] */
+                        ],
                         1,
                         ""
                     );
@@ -341,7 +409,7 @@ contract Loot {
                                 typeCounts[boxId][2] +
                                 typeCounts[boxId][3] +
                                 i
-                        ] /* box[boxId].odds[box[boxId].typeCounts[0] + i] */
+                        ]
                 ) {
                     gamiBox.safeTransferFrom(
                         tokensSeller,
@@ -352,7 +420,7 @@ contract Loot {
                                 typeCounts[boxId][2] +
                                 typeCounts[boxId][3] +
                                 i
-                        ], /* box[boxId].items[box[boxId].typeCounts[0] + i] */
+                        ], 
                         1,
                         ""
                     );
@@ -399,7 +467,7 @@ contract Loot {
                                 typeCounts[boxId][3] +
                                 typeCounts[boxId][4] +
                                 i
-                        ] /* box[boxId].odds[box[boxId].typeCounts[0] + i] */
+                        ] 
                 ) {
                     gamiBox.safeTransferFrom(
                         tokensSeller,
@@ -411,7 +479,7 @@ contract Loot {
                                 typeCounts[boxId][3] +
                                 typeCounts[boxId][4] +
                                 i
-                        ], /* box[boxId].items[box[boxId].typeCounts[0] + i] */
+                        ], 
                         1,
                         ""
                     );
@@ -432,6 +500,5 @@ contract Loot {
         gamiBox.burn(msg.sender, boxId, 1);
         gamiBox.burn(msg.sender, boxKeys[boxId], 1);
 
-        emit LootBox(msg.sender, boxId, server_seed);
-    }
+        emit LootBox(msg.sender, boxId, server_seed); */
 }
